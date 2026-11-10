@@ -20,14 +20,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build Debug APK with Gradle (Wrapper/Command fallback)
+    - name: Generate Gradle Wrapper and Build APK
       run: |
-        if [ -f "./gradlew" ]; then
-          chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
-        else
-          gradle assembleDebug --no-daemon
-        fi
+        gradle wrapper --gradle-version 8.5
+        chmod +x ./gradlew
+        ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
