@@ -1,0 +1,8 @@
+android.useAndroidX=true
+android.enableJetifier=true
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.injected.build.model.only.versioned=3
+android.enableAapt2=true
+android.daemon=true
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 -XX:+UseG1GC
+android.aapt2.threads=1
