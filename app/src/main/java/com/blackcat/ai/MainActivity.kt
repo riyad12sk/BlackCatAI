@@ -1,7 +1,8 @@
 package com.blackcat.ai
 
 import android.Manifest
-import android.app.Activity
+import android.media.AudioManager
+import android.os.BatteryManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -197,7 +198,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             .replace("০", "0").replace("১", "1").replace("২", "2").replace("৩", "3")
             .replace("৪", "4").replace("৫", "5").replace("৬", "6").replace("৭", "7")
             .replace("৮", "8").replace("৯", "9")
-        val reminderMatch = Regex("(\\d+)\\s*(minute|minutes|min|মিনিট)\\s*(later|পরে)")
+        val reminderMatch = Regex("(?:in\\s*)?(\\d+)\\s*(minute|minutes|min|মিনিট)(?:\\s*(later|from now|পরে))?")
             .find(normalizedDigits)
         return when {
             reminderMatch != null -> {
@@ -210,6 +211,39 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 openApp("com.facebook.katana", "Facebook", language)
             command.contains("whatsapp") || command.contains("হোয়াটসঅ্যাপ") || command.contains("হোয়াটসঅ্যাপ") ->
                 openApp("com.whatsapp", "WhatsApp", language)
+            command.contains("search ") || command.startsWith("search") || command.contains("খুঁজে") -> {
+                val query = rawCommand.replace(Regex("(?i)search"), "").replace("খুঁজে", "").trim()
+                val intent = Intent(Intent.ACTION_WEB_SEARCH).putExtra("query", query.ifBlank { rawCommand })
+                try { startActivity(intent) } catch (_: Exception) {
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/search?q=" + android.net.Uri.encode(query.ifBlank { rawCommand })))
+                }
+                greeting + if (language == "bn") "ইন্টারনেট সার্চ খুলেছি।" else "Web search opened."
+            }
+            command.contains("camera") || command.contains("ক্যামেরা") -> {
+                try { startActivity(Intent("android.media.action.IMAGE_CAPTURE")) }
+                catch (_: Exception) { return if (language == "bn") "ক্যামেরা অ্যাপ পাওয়া যায়নি।" else "No camera app was found." }
+                greeting + if (language == "bn") "ক্যামেরা খুলেছি।" else "Camera opened."
+            }
+            command.contains("file") || command.contains("ফাইল") -> {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)
+                startActivity(Intent.createChooser(intent, if (language == "bn") "ফাইল নির্বাচন করুন" else "Choose a file"))
+                greeting + if (language == "bn") "ফাইল নির্বাচন খুলেছি।" else "File picker opened."
+            }
+            command.contains("battery") || command.contains("ব্যাটারি") -> {
+                val battery = getSystemService(BATTERY_SERVICE) as BatteryManager
+                val level = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                if (language == "bn") "আপনার ফোনের ব্যাটারি $level শতাংশ।" else "Your phone battery is at $level percent."
+            }
+            command.contains("volume up") || command.contains("ভলিউম বাড়াও") || command.contains("ভলিউম বাড়াও") -> {
+                val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+                audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                greeting + if (language == "bn") "মিডিয়া ভলিউম বাড়িয়েছি।" else "Media volume increased."
+            }
+            command.contains("volume down") || command.contains("ভলিউম কমাও") -> {
+                val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+                audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                greeting + if (language == "bn") "মিডিয়া ভলিউম কমিয়েছি।" else "Media volume decreased."
+            }
             command.contains("dial") || command.contains("call") ||
                 command.contains("কল") || command.contains("ডায়াল") || command.contains("ডায়াল") -> {
                 startActivity(Intent(Intent.ACTION_DIAL))
