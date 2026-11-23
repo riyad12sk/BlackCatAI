@@ -215,7 +215,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 val query = rawCommand.replace(Regex("(?i)search"), "").replace("খুঁজে", "").trim()
                 val intent = Intent(Intent.ACTION_WEB_SEARCH).putExtra("query", query.ifBlank { rawCommand })
                 try { startActivity(intent) } catch (_: Exception) {
-                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/search?q=" + android.net.Uri.encode(query.ifBlank { rawCommand })))
+                    startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/search?q=" + android.net.Uri.encode(query.ifBlank { rawCommand }))))
                 }
                 greeting + if (language == "bn") "ইন্টারনেট সার্চ খুলেছি।" else "Web search opened."
             }
