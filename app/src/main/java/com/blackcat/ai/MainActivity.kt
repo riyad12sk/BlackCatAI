@@ -1,6 +1,7 @@
 package com.blackcat.ai
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -46,6 +47,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,6 +67,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var currentLanguage = "bn"
+    private var pendingReminderMinutes: Long? = null
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val minutes = pendingReminderMinutes
+        pendingReminderMinutes = null
+        if (granted && minutes != null) enqueueReminder(minutes)
+    }
 
     private val microphonePermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -152,10 +165,45 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         speechRecognizer?.startListening(intent)
     }
 
+    private fun enqueueReminder(minutes: Long) {
+        val data = Data.Builder()
+            .putString(ReminderWorker.KEY_TITLE, "BLACK CAT AI")
+            .putString(ReminderWorker.KEY_MESSAGE, "আপনার $minutes মিনিটের রিমাইন্ডারের সময় হয়েছে।")
+            .build()
+        val request = OneTimeWorkRequestBuilder<ReminderWorker>()
+            .setInitialDelay(minutes, TimeUnit.MINUTES)
+            .setInputData(data)
+            .build()
+        WorkManager.getInstance(this).enqueue(request)
+    }
+
+    private fun createReminder(minutes: Long): String {
+        if (minutes !in 1..10080) return "রিমাইন্ডারের সময় ১ মিনিট থেকে ৭ দিনের মধ্যে দিন।"
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingReminderMinutes = minutes
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return "রিমাইন্ডার সেট করার জন্য Notification permission দিন।"
+        }
+        enqueueReminder(minutes)
+        return "$minutes মিনিট পরের রিমাইন্ডার সেট হয়েছে।"
+    }
+
     internal fun runCommand(rawCommand: String, language: String, address: String): String {
         val command = rawCommand.trim().lowercase(Locale.ROOT)
         val greeting = if (language == "bn") "হ্যাঁ $address, " else "Yes $address, "
+        val normalizedDigits = command
+            .replace("০", "0").replace("১", "1").replace("২", "2").replace("৩", "3")
+            .replace("৪", "4").replace("৫", "5").replace("৬", "6").replace("৭", "7")
+            .replace("৮", "8").replace("৯", "9")
+        val reminderMatch = Regex("(\\d+)\\s*(minute|minutes|min|মিনিট)\\s*(later|পরে)")
+            .find(normalizedDigits)
         return when {
+            reminderMatch != null -> {
+                val result = createReminder(reminderMatch.groupValues[1].toLongOrNull() ?: 0L)
+                if (language == "bn") result else "Reminder scheduled in ${reminderMatch.groupValues[1]} minutes."
+            }
             command.contains("youtube") || command.contains("ইউটিউব") ->
                 openApp("com.google.android.youtube", "YouTube", language)
             command.contains("facebook") || command.contains("ফেসবুক") ->
