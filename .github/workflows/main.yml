@@ -5,10 +5,12 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -16,18 +18,44 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
-      - name: Generate Wrapper and Build APK
-        run: |
-          # Server নিজেই প্রজেক্টের জন্য gradlew ফাইল তৈরি করে নেবে
-          gradle wrapper --gradle-version 8.5
-          chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
+      - name: Set up Gradle 8.5
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
 
-      - name: Upload APK Artifact
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Package APK and complete source ZIP
+        run: |
+          mkdir -p release-package
+          cp app/build/outputs/apk/debug/app-debug.apk release-package/BLACK-CAT-AI-debug.apk
+          git archive --format=zip --output=release-package/BLACK-CAT-AI-source.zip HEAD
+          cat > release-package/BUILD-INFO.txt <<'EOF'
+          BLACK CAT AI v1.0
+          Build type: Debug APK
+          Source archive: BLACK-CAT-AI-source.zip
+          Built by GitHub Actions.
+          A successful CI build confirms compilation, not physical-device testing.
+          EOF
+          cd release-package
+          zip -r ../blackcat-ai-complete.zip .
+
+      - name: Upload complete ZIP bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: blackcat-ai-complete
+          path: blackcat-ai-complete.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload standalone debug APK
         uses: actions/upload-artifact@v4
         with:
           name: blackcat-ai-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
