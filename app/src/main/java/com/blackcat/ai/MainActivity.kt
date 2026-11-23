@@ -1,6 +1,7 @@
 package com.blackcat.ai
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -217,7 +218,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
 @Composable
 private fun BlackCatDashboard(activity: MainActivity) {
-    val prefs = remember { activity.getSharedPreferences("black_cat_preferences", MODE_PRIVATE) }
+    val prefs = remember { activity.getSharedPreferences("black_cat_preferences", Context.MODE_PRIVATE) }
     var language by remember { mutableStateOf(prefs.getString("language", "bn") ?: "bn") }
     var address by remember { mutableStateOf(prefs.getString("address", "বস") ?: "বস") }
     var command by remember { mutableStateOf("") }
